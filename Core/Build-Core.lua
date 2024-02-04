@@ -9,12 +9,25 @@ project "Core"
 
    includedirs
    {
-      "Source"
+      "Source",
+      "vendor/GameNetworkingSockets/include",
+      "vendor/nlohmann/"
    }
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
    objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
 
+   filter { "system:windows", "configurations:Debug" }	
+      links
+      {
+          "vendor/GameNetworkingSockets/bin/Windows/Debug/GameNetworkingSockets.lib"
+      }
+
+  filter { "system:windows", "configurations:Release or configurations:Dist" }	
+      links
+      {
+          "vendor/GameNetworkingSockets/bin/Windows/Release/GameNetworkingSockets.lib"
+      }
    filter "system:windows"
        systemversion "latest"
        defines { }
