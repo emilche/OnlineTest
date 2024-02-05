@@ -297,6 +297,26 @@ void Server::StartServer(const std::string address)
 		// But we could use SteamGameServerNetworkingSockets() on Steam.
 	m_EventHistoryFilePath = "EventHistory.json";
 	m_PlayerDatabaseFilePath = "Players.json";
+	try
+	{
+		std::ifstream f(m_PlayerDatabaseFilePath.string());
+		players = json::parse(f);
+	}
+	catch (json::exception e)
+	{
+		std::cout << "[ERROR] Failed to load player database " << m_PlayerDatabaseFilePath << std::endl << e.what() << std::endl;
+		return;
+	}
+	try
+	{
+		std::ifstream f(m_EventHistoryFilePath.string());
+		players = json::parse(f);
+	}
+	catch (json::exception e)
+	{
+		std::cout << "[ERROR] Failed to load event database " << m_EventHistoryFilePath << std::endl << e.what() << std::endl;
+		return;
+	}
 	m_pInterface = SteamNetworkingSockets();
 	listings.resize(1);
 	Core::Listing list = Core::Listing();
@@ -357,39 +377,66 @@ Core::User Server::GetUser(std::string username)
 {
 	Core::User temp_user = Core::User();
 	temp_user.userId = username;
-	temp_user.balance = 1000;
-	if (!std::filesystem::exists(m_PlayerDatabaseFilePath))
+	if (!players["Users"].contains(username))
+	{
+		temp_user.balance = 1000;
 		return temp_user;
-	//Byt ut det här mot JSON istället.
-	YAML::Node data;
+	}
+	temp_user.balance = players["Users"][username]["balance"];
+	for(auto& [key, value] : players["Users"]["inventory"].items())
+	{
+		Core::Item temp_item = Core::Item();
+		temp_item.itemId = key;
+		temp_item.name = value["name"];
+		temp_item.quantity = value["quantity"];
+		temp_user.inventory.emplace_back(temp_item);
+	}
+	for (auto& [key, value] : players["Users"]["listings"].items())
+	{
+		Core::Listing temp_listing = Core::Listing();
+		temp_listing.itemId = key;
+		temp_listing.itemName = value["itemname"];
+		temp_listing.sellerId = value["seller"];
+		temp_listing.price = value["price"];
+		temp_listing.buyoutPrice = value["buyoutprice"];
+		temp_listing.experationTimeSeconds = value["experationtime"];
+		temp_user.listings.emplace_back(temp_listing);
+	}
+
+	return temp_user;
+}
+
+bool Server::ToPlayerJson(Core::User user)
+{
 	try
 	{
-		data = YAML::LoadFile(m_PlayerDatabaseFilePath.string());
+		if (!players.contains("Users"))
+			players["Users"] = {};
+		players["Users"][user.userId] = {};
+		players["Users"][user.userId]["balance"] = user.balance;
+		players["Users"][user.userId]["inventory"] = {};
+		for (Core::Item my_item : user.inventory)
+		{
+			players["Users"][user.userId]["inventory"][my_item.itemId] = {};
+			players["Users"][user.userId]["inventory"][my_item.itemId]["name"] = my_item.name;
+			players["Users"][user.userId]["inventory"][my_item.itemId]["quantity"] = my_item.quantity;
+		}
+		players["Users"][user.userId]["listings"] = {};
+		for (Core::Listing my_listings : user.listings)
+		{
+			players["Users"][user.userId]["listings"][my_listings.itemId] = {};
+			players["Users"][user.userId]["listings"][my_listings.itemId]["itemname"] = my_listings.itemName;
+			players["Users"][user.userId]["listings"][my_listings.itemId]["seller"] = my_listings.sellerId;
+			players["Users"][user.userId]["listings"][my_listings.itemId]["price"] = my_listings.price;
+			players["Users"][user.userId]["listings"][my_listings.itemId]["buyoutprice"] = my_listings.buyoutPrice;
+			players["Users"][user.userId]["listings"][my_listings.itemId]["experationtime"] = my_listings.experationTimeSeconds;
+		}
+		return true;
 	}
-	catch (YAML::ParserException e)
+	catch (json::exception e)
 	{
-		std::cout << "[ERROR] Failed to load player database " << m_PlayerDatabaseFilePath << std::endl << e.what() << std::endl;
-		return Core::User();
+		std::cout << "[ERROR] Failed to add player to database " << m_PlayerDatabaseFilePath << std::endl << e.what() << std::endl;
+		return false;
 	}
-
-	auto rootNode = data["Users"];
-	if (!rootNode)
-		return false;
-	rootNode[]
-	std::string userId;
-	double balance = 0;
-	auto rootNode = rootNode["Users"];
-	if (!rootNode)
-		return false;
-	std::vector<Listing*> listings;
-	std::vector<Item*> inventory;
-	
-	m_MessageHistory.reserve(rootNode.size());
-	for (const auto& node : rootNode)
-		m_MessageHistory.emplace_back(Core::User(node[username]["User"].as<std::string>(), std::vector<Core::Listing*>(),));
-
-	return true;
-
-	return User();
 }
 

@@ -22,7 +22,8 @@ class Server
     std::vector<Core::AuctionhouseEvents> ahEvents;
     std::filesystem::path m_EventHistoryFilePath;
     std::filesystem::path m_PlayerDatabaseFilePath;
-
+    json players;
+    json events;
     // SERVER LOGIC
 
 
@@ -35,6 +36,7 @@ class Server
     static void ConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo);
     void PollConnectionStateChanges();
     Core::User GetUser(std::string username);
+    bool ToPlayerJson(Core::User user);
 public:
     void StartServer(const std::string address);
 };

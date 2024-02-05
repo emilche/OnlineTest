@@ -58,8 +58,8 @@ namespace Core {
 
     struct User {
         std::string userId;
-        std::vector<Listing*> listings;
-        std::vector<Item*> inventory;
+        std::vector<Listing> listings;
+        std::vector<Item> inventory;
         double balance = 0;
         // Other user properties
     };
