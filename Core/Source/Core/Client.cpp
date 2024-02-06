@@ -144,10 +144,13 @@ void Client::PollConnectionStateChanges()
 
 void Client::StartClient(const std::string serverAddress)
 {
+	std::string nickname;
+	std::cout << "Please enter a nickname: ";
+	std::cin >> nickname;
+	nickname = "/nick " + nickname;
 	s_pCallbackInstance = this;
 	// Select instance to use.  For now we'll always use the default.
 	m_pInterface = SteamNetworkingSockets();
-	
 	// Start connecting
 	SteamNetworkingIPAddr address;
 	if (!address.ParseString(serverAddress.c_str()))
@@ -161,6 +164,7 @@ void Client::StartClient(const std::string serverAddress)
 	m_hConnection = m_pInterface->ConnectByIPAddress(address, 1, &opt);
 	if (m_hConnection == k_HSteamNetConnection_Invalid)
 		Core::FatalError("Failed to create connection");
+	m_pInterface->SendMessageToConnection(m_hConnection, nickname.c_str(), (uint32)nickname.length(), k_nSteamNetworkingSend_Reliable, nullptr);
 
 	while (!Core::g_bQuit)
 	{

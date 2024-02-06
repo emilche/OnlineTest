@@ -22,8 +22,6 @@ class Server
     std::vector<Core::AuctionhouseEvents> ahEvents;
     std::filesystem::path m_EventHistoryFilePath;
     std::filesystem::path m_PlayerDatabaseFilePath;
-    json players;
-    json events;
     // SERVER LOGIC
 
 

@@ -12,7 +12,6 @@
 #include <queue>
 #include <map>
 #include <cctype>
-
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
 #ifndef STEAMNETWORKINGSOCKETS_OPENSOURCE
@@ -25,7 +24,6 @@
 	#include <unistd.h>
 	#include <signal.h>
 #endif
-#include "yaml-cpp/yaml.h"
 
 #include <iostream>
 #include <fstream>

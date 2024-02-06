@@ -118,7 +118,7 @@ void Server::SetClientNick(uint32_t hConn, const char* nick)
 	//Detta ska ändras till att faktiskt vara ett ah event. Typ Buy item. eller List item
 
 	// Remember their nick
-	m_connectedClients[hConn].userId = nick;
+	m_connectedClients[hConn] = GetUser(nick);
 
 	// Set the connection name, too, which is useful for debugging
 	m_pInterface->SetConnectionName(hConn, nick);
@@ -250,11 +250,12 @@ void Server::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCa
 		{
 			SendStringToClient(
 				(uint32)pInfo->m_hConn,
-				std::format("{}. Current bid: {}. Buyout price: {}. Seller: {}",
+				std::format("{}. Current bid: {}. Buyout price: {}. Seller: {}. Expires: {}",
 					listings[i].itemName,
 					listings[i].price,
 					listings[i].buyoutPrice,
-					listings[i].sellerId
+					listings[i].sellerId,
+					SecondsToTime(listings[i].experationTimeSeconds)
 				).c_str()
 			);
 		}
@@ -297,10 +298,34 @@ void Server::StartServer(const std::string address)
 		// But we could use SteamGameServerNetworkingSockets() on Steam.
 	m_EventHistoryFilePath = "EventHistory.json";
 	m_PlayerDatabaseFilePath = "Players.json";
+	if (!std::filesystem::exists(std::filesystem::path(m_EventHistoryFilePath)))
+	{
+		json new_j;
+		new_j["Events"] = {};
+		// Write JSON data to a file
+		std::ofstream outFile(m_EventHistoryFilePath);
+		if (!outFile.is_open()) {
+			std::cerr << "Failed to open EventHistory.json for writing." << std::endl;
+		}
+		outFile << std::setw(4) << new_j << std::endl; // Pretty-print JSON
+		outFile.close();
+	}
+	if (!std::filesystem::exists(std::filesystem::path(m_PlayerDatabaseFilePath)))
+	{
+		json new_j;
+		new_j["Users"] = {};
+		// Write JSON data to a file
+		std::ofstream outFile(m_PlayerDatabaseFilePath);
+		if (!outFile.is_open()) {
+			std::cerr << "Failed to open Players.json for writing." << std::endl;
+		}
+		outFile << std::setw(4) << new_j << std::endl; // Pretty-print JSON
+		outFile.close();
+	}
 	try
 	{
 		std::ifstream f(m_PlayerDatabaseFilePath.string());
-		players = json::parse(f);
+		json players = json::parse(f);
 	}
 	catch (json::exception e)
 	{
@@ -310,7 +335,7 @@ void Server::StartServer(const std::string address)
 	try
 	{
 		std::ifstream f(m_EventHistoryFilePath.string());
-		players = json::parse(f);
+		json players = json::parse(f);
 	}
 	catch (json::exception e)
 	{
@@ -325,7 +350,6 @@ void Server::StartServer(const std::string address)
 	list.sellerId = "The state";
 	list.price = 100;
 	list.buyoutPrice = 400;
-	list.experationTimeSeconds = 30000.0f;
 	listings[0] = list;
 	// Start listening
 	SteamNetworkingIPAddr serverLocalAddr;
@@ -375,11 +399,24 @@ void Server::StartServer(const std::string address)
 
 Core::User Server::GetUser(std::string username)
 {
+	json players;
+	try
+	{
+		std::ifstream f(m_PlayerDatabaseFilePath.string());
+		players = json::parse(f);
+	}
+	catch (json::exception e)
+	{
+		std::cout << "[ERROR] Failed to load player database " << m_PlayerDatabaseFilePath << std::endl << e.what() << std::endl;
+		return Core::User();
+	}
+
 	Core::User temp_user = Core::User();
 	temp_user.userId = username;
 	if (!players["Users"].contains(username))
 	{
 		temp_user.balance = 1000;
+		ToPlayerJson(temp_user);
 		return temp_user;
 	}
 	temp_user.balance = players["Users"][username]["balance"];
@@ -406,8 +443,37 @@ Core::User Server::GetUser(std::string username)
 	return temp_user;
 }
 
+std::string Server::SecondsToTime(int seconds)
+{
+	auto now = std::chrono::system_clock::now();
+	std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+	std::chrono::system_clock::time_point newTime = now + std::chrono::seconds(seconds);
+	std::time_t newTimeT = std::chrono::system_clock::to_time_t(newTime);
+	std::tm* newLocalTime = std::localtime(&newTimeT);
+	int newHour = newLocalTime->tm_hour;
+	int newMinute = newLocalTime->tm_min;
+	int newSecond = newLocalTime->tm_sec;
+
+	
+	std::string out = std::format("Expires: {}:{}:{}",
+		newHour, newMinute, newSecond
+	);
+	return out;
+}
+
 bool Server::ToPlayerJson(Core::User user)
 {
+	json players;
+	try
+	{
+		std::ifstream f(m_PlayerDatabaseFilePath.string());
+		players = json::parse(f);
+	}
+	catch (json::exception e)
+	{
+		std::cout << "[ERROR] Failed to load player database " << m_PlayerDatabaseFilePath << std::endl << e.what() << std::endl;
+		return false;
+	}
 	try
 	{
 		if (!players.contains("Users"))
@@ -430,6 +496,16 @@ bool Server::ToPlayerJson(Core::User user)
 			players["Users"][user.userId]["listings"][my_listings.itemId]["price"] = my_listings.price;
 			players["Users"][user.userId]["listings"][my_listings.itemId]["buyoutprice"] = my_listings.buyoutPrice;
 			players["Users"][user.userId]["listings"][my_listings.itemId]["experationtime"] = my_listings.experationTimeSeconds;
+		}
+		if (std::filesystem::exists(std::filesystem::path(m_PlayerDatabaseFilePath)))
+		{
+			// Write JSON data to a file
+			std::ofstream outFile(m_PlayerDatabaseFilePath);
+			if (!outFile.is_open()) {
+				std::cerr << "Failed to open Players.json for writing." << std::endl;
+			}
+			outFile << std::setw(4) << players << std::endl; // Pretty-print JSON
+			outFile.close();
 		}
 		return true;
 	}

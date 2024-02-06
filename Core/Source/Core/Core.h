@@ -47,12 +47,14 @@ namespace Core {
         std::string sellerId;
         double price;
         double buyoutPrice;
-        float experationTimeSeconds;
         // Other listing properties
     };
     struct AuctionhouseEvents {
+        std::string timestamp;
+        std::string user;
         Listing listed_item;
         AuctionhouseInteractions ahEvent;
+
 
     };
 
