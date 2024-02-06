@@ -69,7 +69,7 @@ void Server::PollIncomingMessages()
 
 		// We don't need this anymore.
 		pIncomingMsg->Release();
-
+		std::cout << std::format("[{}]: {}", itClient->second.userId.c_str(), cmd) << std::endl;
 		// Check for known commands.  None of this example code is secure or robust.
 		// Don't write a real server like this, please.
 
@@ -250,12 +250,11 @@ void Server::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCa
 		{
 			SendStringToClient(
 				(uint32)pInfo->m_hConn,
-				std::format("{}. Current bid: {}. Buyout price: {}. Seller: {}. Expires: {}",
+				std::format("{}. Current bid: {}. Buyout price: {}. Seller: {}",
 					listings[i].itemName,
 					listings[i].price,
 					listings[i].buyoutPrice,
-					listings[i].sellerId,
-					SecondsToTime(listings[i].experationTimeSeconds)
+					listings[i].sellerId
 				).c_str()
 			);
 		}
@@ -436,29 +435,10 @@ Core::User Server::GetUser(std::string username)
 		temp_listing.sellerId = value["seller"];
 		temp_listing.price = value["price"];
 		temp_listing.buyoutPrice = value["buyoutprice"];
-		temp_listing.experationTimeSeconds = value["experationtime"];
 		temp_user.listings.emplace_back(temp_listing);
 	}
 
 	return temp_user;
-}
-
-std::string Server::SecondsToTime(int seconds)
-{
-	auto now = std::chrono::system_clock::now();
-	std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-	std::chrono::system_clock::time_point newTime = now + std::chrono::seconds(seconds);
-	std::time_t newTimeT = std::chrono::system_clock::to_time_t(newTime);
-	std::tm* newLocalTime = std::localtime(&newTimeT);
-	int newHour = newLocalTime->tm_hour;
-	int newMinute = newLocalTime->tm_min;
-	int newSecond = newLocalTime->tm_sec;
-
-	
-	std::string out = std::format("Expires: {}:{}:{}",
-		newHour, newMinute, newSecond
-	);
-	return out;
 }
 
 bool Server::ToPlayerJson(Core::User user)
@@ -495,7 +475,6 @@ bool Server::ToPlayerJson(Core::User user)
 			players["Users"][user.userId]["listings"][my_listings.itemId]["seller"] = my_listings.sellerId;
 			players["Users"][user.userId]["listings"][my_listings.itemId]["price"] = my_listings.price;
 			players["Users"][user.userId]["listings"][my_listings.itemId]["buyoutprice"] = my_listings.buyoutPrice;
-			players["Users"][user.userId]["listings"][my_listings.itemId]["experationtime"] = my_listings.experationTimeSeconds;
 		}
 		if (std::filesystem::exists(std::filesystem::path(m_PlayerDatabaseFilePath)))
 		{
