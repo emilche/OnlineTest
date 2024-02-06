@@ -30,7 +30,17 @@
             "inventory": null,
             "listings": null
         },
+        "Emil": {
+            "balance": 1000.0,
+            "inventory": null,
+            "listings": null
+        },
         "Emilche": {
+            "balance": 1000.0,
+            "inventory": null,
+            "listings": null
+        },
+        "Lisa": {
             "balance": 1000.0,
             "inventory": null,
             "listings": null

@@ -75,21 +75,17 @@ void Server::PollIncomingMessages()
 
 		if (strncmp(cmd, "/nick", 5) == 0)
 		{
-			const char* nick = cmd + 5;
-			while (isspace(*nick))
-				++nick;
+			if (itClient->second.userId == "")
+			{
+				const char* nick = cmd + 5;
+				while (isspace(*nick))
+					++nick;
 
-			// Let everybody else know they changed their name
-			sprintf(temp, "%s shall henceforth be known as %s", itClient->second.userId.c_str(), nick);
-			SendStringToAllClients(temp, itClient->first);
-
-			// Respond to client
-			sprintf(temp, "Ye shall henceforth be known as %s", nick);
-			SendStringToClient(itClient->first, temp);
-
-			// Actually change their name
-			SetClientNick(itClient->first, nick);
-			continue;
+				// Actually change their name
+				SetClientNick(itClient->first, nick);
+				continue;
+			}
+			
 		}
 
 		// Assume it's just a ordinary chat message, dispatch to everybody else
@@ -115,11 +111,40 @@ void Server::PollLocalUserInput()
 }
 void Server::SetClientNick(uint32_t hConn, const char* nick)
 {
-	//Detta ska ändras till att faktiskt vara ett ah event. Typ Buy item. eller List item
-
-	// Remember their nick
+	char temp[1024];
 	m_connectedClients[hConn] = GetUser(nick);
+	// Send them a welcome message
+	sprintf(temp, "Welcome %s", nick);
+	SendStringToClient(hConn, temp);
 
+	// Also send them a list of everybody who is already connected
+	if (m_connectedClients.empty())
+	{
+		SendStringToClient((uint32)hConn, "No one else is online.");
+	}
+	else
+	{
+		sprintf(temp, "There are %d players online:", (int)m_connectedClients.size());
+		SendStringToClient(hConn, temp);
+		for (auto& c : m_connectedClients)
+			SendStringToClient((uint32)hConn, c.second.userId.c_str());
+	}
+	SendStringToClient((uint32)hConn, "The listed items are: ");
+	for (size_t i = 0; i < listings.size(); i++)
+	{
+		SendStringToClient(
+			(uint32)hConn,
+			std::format("{}. Current bid: {}. Buyout price: {}. Seller: {}",
+				listings[i].itemName,
+				listings[i].price,
+				listings[i].buyoutPrice,
+				listings[i].sellerId
+			).c_str()
+		);
+	}
+	// Let everybody else know who they are for now
+	sprintf(temp, "'%s' has connected", nick);
+	SendStringToAllClients(temp, (uint32)hConn);
 	// Set the connection name, too, which is useful for debugging
 	m_pInterface->SetConnectionName(hConn, nick);
 }
@@ -227,44 +252,9 @@ void Server::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCa
 		// and you would keep their client in a state of limbo (connected,
 		// but not logged on) until them.  I'm trying to keep this example
 		// code really simple.
-		char nick[64];
-		sprintf(nick, "BraveWarrior%d", 10000 + (rand() % 100000));
-
-		// Send them a welcome message
-		sprintf(temp, "Welcome, stranger.  Thou art known to us for now as '%s'; upon thine command '/nick' we shall know thee otherwise.", nick);
-		SendStringToClient(pInfo->m_hConn, temp);
-
-		// Also send them a list of everybody who is already connected
-		if (m_connectedClients.empty())
-		{
-			SendStringToClient((uint32)pInfo->m_hConn, "Thou art utterly alone.");
-		}
-		else
-		{
-			sprintf(temp, "%d companions greet you:", (int)m_connectedClients.size());
-			for (auto& c : m_connectedClients)
-				SendStringToClient((uint32)pInfo->m_hConn, c.second.userId.c_str());
-		}
-		SendStringToClient((uint32)pInfo->m_hConn, "The listed items are: ");
-		for (size_t i = 0; i < listings.size(); i++)
-		{
-			SendStringToClient(
-				(uint32)pInfo->m_hConn,
-				std::format("{}. Current bid: {}. Buyout price: {}. Seller: {}",
-					listings[i].itemName,
-					listings[i].price,
-					listings[i].buyoutPrice,
-					listings[i].sellerId
-				).c_str()
-			);
-		}
-		// Let everybody else know who they are for now
-		sprintf(temp, "Hark!  A stranger hath joined this merry host.  For now we shall call them '%s'", nick);
-		SendStringToAllClients(temp, (uint32)pInfo->m_hConn);
 
 		// Add them to the client list, using std::map wacky syntax
 		m_connectedClients[(uint32)pInfo->m_hConn];
-		SetClientNick((uint32)pInfo->m_hConn, nick);
 		break;
 	}
 
