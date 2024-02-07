@@ -35,6 +35,10 @@ class Server
     void PollConnectionStateChanges();
     Core::User GetUser(std::string username);
     bool ToPlayerJson(Core::User user);
+    void SendListings(uint32_t hConn);
+    std::string ListTimeToString();
+    void CheckforExpiredListings();
+    void RemoveListing(Core::Listing);
 public:
     void StartServer(const std::string address);
 };

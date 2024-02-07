@@ -26,7 +26,6 @@ namespace Core {
     struct Item {
         std::string name;
         std::string itemId;
-        uint16_t quantity;
         // Other item properties
     };
 
@@ -42,11 +41,12 @@ namespace Core {
     };
 
     struct Listing {
-        std::string itemId;
-        std::string itemName;
+        Item item;
         std::string sellerId;
+        std::string bidder = "None";
         double price;
         double buyoutPrice;
+        std::string ends;
         // Other listing properties
     };
     struct AuctionhouseEvents {
