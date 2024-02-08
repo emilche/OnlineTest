@@ -44,6 +44,109 @@ void Server::SendStringToAllClients(const char* str, uint32_t except = k_HSteamN
 			SendStringToClient(c.first, str);
 	}
 }
+void Server::HandleBid(std::map<ClientID, Core::User>::iterator itClient, std::string sCmd)
+{
+	char _temp[1024];
+	//Do something
+	const char* bid = sCmd.c_str() + 4;
+	std::istringstream iss(sCmd);
+
+	// Vector to store the words
+	std::vector<std::string> words;
+
+	// Read words from the input stream
+	std::string word;
+	while (iss >> word) {
+		words.push_back(word);
+	}
+	if (words.size() != 3)
+	{
+		sprintf(_temp, "Your bid request was mallformed and not processed. Make sure to say: /bid LISTINGINDEX AMOUNT");
+		SendStringToClient(itClient->first, _temp);
+	}
+	int listing_index;
+	int bid_amount;
+	try {
+		// Convert string to integer using std::stoi
+		listing_index = std::stoi(words[1]) - 1;
+		bid_amount = std::stoi(words[2]);
+	}
+	catch (const std::invalid_argument& e) {
+		sprintf(_temp, "Your bid request was mallformed and not processed. Make sure to say: /bid LISTINGINDEX AMOUNT");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	catch (const std::out_of_range& e) {
+		sprintf(_temp, "Your bid request was mallformed and not processed. Make sure to say: /bid LISTINGINDEX AMOUNT");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	if (bid_amount > itClient->second.balance)
+	{
+		sprintf(_temp, "Insufficent funds. You only have %f G", itClient->second.balance);
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	if (listing_index < 0 || listing_index > listings.size())
+	{
+		sprintf(_temp, "Invalid Listing");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	if (listings[listing_index].price >= bid_amount)
+	{
+		sprintf(_temp, "Your bid was too low and won't be accepted");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	listings[listing_index].price = bid_amount;
+	listings[listing_index].bidder = itClient->second.userId;
+	itClient->second.balance -= bid_amount;
+	ToPlayerJson(itClient->second);
+	sprintf(_temp, std::format("You bid on {}.{} the new price is now {}",
+		listing_index + 1, listings[listing_index].item.name,
+		listings[listing_index].price
+	).c_str());
+	SendStringToClient(itClient->first, _temp);
+	sprintf(_temp, std::format("{} Made a bid on {}.{} the new price is now {}",
+		itClient->second.userId,
+		listing_index + 1, listings[listing_index].item.name,
+		listings[listing_index].price
+	).c_str());
+	ToListingsJson();
+	SendStringToAllClients(_temp, itClient->first);
+	return;
+}
+
+void Server::HandleMe(std::map<ClientID, Core::User>::iterator itClient)
+{
+	char _temp[1024];
+	std::string inventory_string = "";
+	std::string listings_string = "";
+	for (size_t i = 0; i < itClient->second.inventory.size(); i++)
+	{
+		if (itClient->second.inventory[i].name != "")
+			inventory_string += std::format("{}. {} \n", i, itClient->second.inventory[i].name);
+	}
+	for (size_t i = 0; i < itClient->second.listings.size(); i++)
+	{
+		listings_string += std::format("{}. {}. Current bid: {}. Made by: {}. Buyout price: {}. Ends: {} \n",
+			i,
+			itClient->second.listings[i].item.name,
+			itClient->second.listings[i].price,
+			itClient->second.listings[i].bidder,
+			itClient->second.listings[i].buyoutPrice,
+			itClient->second.listings[i].ends
+		);
+	}
+	sprintf(_temp, std::format("You are: {}.\nYour account balance: {}G.\nYour inventory:\n{}You have these auctions listed:\n{}",
+		itClient->second.userId,
+		itClient->second.balance,
+		inventory_string,
+		listings_string
+	).c_str());
+	SendStringToClient(itClient->first, _temp);
+}
 
 void Server::PollIncomingMessages()
 {
@@ -89,77 +192,18 @@ void Server::PollIncomingMessages()
 		}
 		else if (strncmp(cmd, "/bid", 4) == 0)
 		{
-			//Do something
-			const char* bid = cmd + 4;
-			std::istringstream iss(sCmd);
-
-			// Vector to store the words
-			std::vector<std::string> words;
-
-			// Read words from the input stream
-			std::string word;
-			while (iss >> word) {
-				words.push_back(word);
-			}
-			if (words.size() != 3)
-			{
-				sprintf(temp, "Your bid request was mallformed and not processed. Make sure to say: /bid LISTINGINDEX AMOUNT");
-				SendStringToClient(itClient->first, temp);
-			}
-			int listing_index;
-			int bid_amount;
-			try {
-				// Convert string to integer using std::stoi
-				listing_index = std::stoi(words[1]) - 1;
-				bid_amount = std::stoi(words[2]);
-			}
-			catch (const std::invalid_argument& e) {
-				sprintf(temp, "Your bid request was mallformed and not processed. Make sure to say: /bid LISTINGINDEX AMOUNT");
-				SendStringToClient(itClient->first, temp);
-				continue;
-			}
-			catch (const std::out_of_range& e) {
-				sprintf(temp, "Your bid request was mallformed and not processed. Make sure to say: /bid LISTINGINDEX AMOUNT");
-				SendStringToClient(itClient->first, temp);
-				continue;
-			}
-			if (bid_amount > itClient->second.balance)
-			{
-				sprintf(temp, "Insufficent funds. You only have %i G", itClient->second.balance);
-				SendStringToClient(itClient->first, temp);
-				continue;
-			}
-			if (listing_index < 0 || listing_index > listings.size())
-			{
-				sprintf(temp, "Invalid Listing");
-				SendStringToClient(itClient->first, temp);
-				continue;
-			}
-			if (listings[listing_index].price >= bid_amount)
-			{
-				sprintf(temp, "Your bid was too low and won't be accepted");
-				SendStringToClient(itClient->first, temp);
-				continue;
-			}
-			listings[listing_index].price = bid_amount;
-			listings[listing_index].bidder = itClient->second.userId;
-			itClient->second.balance -= bid_amount;
-			sprintf(temp, std::format("You bid on {}.{} the new price is now {}",
-				listing_index + 1, listings[listing_index].item.name,
-				listings[listing_index].price
-			).c_str());
-			SendStringToClient(itClient->first, temp);
-			sprintf(temp, std::format("{} Made a bid on {}.{} the new price is now {}", 
-				itClient->second.userId, 
-				listing_index + 1,listings[listing_index].item.name, 
-				listings[listing_index].price
-			).c_str());
-			SendStringToAllClients(temp, itClient->first);
+			HandleBid(itClient, sCmd);
 			continue;
 		}
 		else if (strncmp(cmd, "/listings", 9) == 0)
 		{
 			SendListings(itClient->first);
+			continue;
+		}
+		else if (strncmp(cmd, "/me", 3) == 0)
+		{
+			HandleMe(itClient);
+			continue;
 		}
 
 		// Assume it's just a ordinary chat message, dispatch to everybody else
@@ -174,6 +218,7 @@ void Server::PollLocalUserInput()
 	{
 		if (strcmp(cmd.c_str(), "/quit") == 0)
 		{
+			ToListingsJson();
 			Core::g_bQuit = true;
 			Core::Printf("Shutting down server");
 			break;
@@ -205,6 +250,16 @@ void Server::SetClientNick(uint32_t hConn, const char* nick)
 	}
 	SendStringToClient((uint32)hConn, "The listed items are: ");
 	SendListings((uint32)hConn);
+	if (m_connectedClients[hConn].bufferMessages.size() > 0)
+	{
+		SendStringToClient((uint32)hConn, "This happened when you where offline: ");
+		for (std::string message : m_connectedClients[hConn].bufferMessages)
+		{
+			SendStringToClient((uint32)hConn, message.c_str());
+		}
+	}
+	m_connectedClients[hConn].bufferMessages.clear();
+	ToPlayerJson(m_connectedClients[hConn]);
 	
 	// Let everybody else know who they are for now
 	sprintf(temp, "'%s' has connected", nick);
@@ -351,6 +406,7 @@ void Server::StartServer(const std::string address)
 		// But we could use SteamGameServerNetworkingSockets() on Steam.
 	m_EventHistoryFilePath = "EventHistory.json";
 	m_PlayerDatabaseFilePath = "Players.json";
+	m_ListingsDatabaseFilePath = "Listings.json";
 	if (!std::filesystem::exists(std::filesystem::path(m_EventHistoryFilePath)))
 	{
 		json new_j;
@@ -375,6 +431,18 @@ void Server::StartServer(const std::string address)
 		outFile << std::setw(4) << new_j << std::endl; // Pretty-print JSON
 		outFile.close();
 	}
+	if (!std::filesystem::exists(std::filesystem::path(m_ListingsDatabaseFilePath)))
+	{
+		json new_j;
+		new_j["Listings"] = {};
+		// Write JSON data to a file
+		std::ofstream outFile(m_ListingsDatabaseFilePath);
+		if (!outFile.is_open()) {
+			std::cerr << "Failed to open Listings.json for writing." << std::endl;
+		}
+		outFile << std::setw(4) << new_j << std::endl; // Pretty-print JSON
+		outFile.close();
+	}
 	try
 	{
 		std::ifstream f(m_PlayerDatabaseFilePath.string());
@@ -388,23 +456,29 @@ void Server::StartServer(const std::string address)
 	try
 	{
 		std::ifstream f(m_EventHistoryFilePath.string());
-		json players = json::parse(f);
+		json events = json::parse(f);
 	}
 	catch (json::exception e)
 	{
 		std::cout << "[ERROR] Failed to load event database " << m_EventHistoryFilePath << std::endl << e.what() << std::endl;
 		return;
 	}
+	
 	m_pInterface = SteamNetworkingSockets();
-	listings.resize(1);
-	Core::Listing list = Core::Listing();
-	list.item.itemId = "2340258";
-	list.item.name = "Axe of doom";
-	list.sellerId = "The State";
-	list.price = 100;
-	list.buyoutPrice = 400;
-	list.ends = ListTimeToString();
-	listings[0] = list;
+	LoadListings();
+	if(listings.size() == 0)
+	{
+		listings.resize(1);
+		Core::Listing list = Core::Listing();
+		list.item.itemId = "2340258";
+		list.item.name = "Axe of doom";
+		list.sellerId = "The State";
+		list.price = 100;
+		list.buyoutPrice = 400;
+		list.ends = ListTimeToString();
+		listings[0] = list;
+		ToListingsJson();
+	}
 	// Start listening
 	SteamNetworkingIPAddr serverLocalAddr;
 	serverLocalAddr.Clear();
@@ -492,7 +566,7 @@ Core::User Server::GetUser(std::string username)
 		temp_listing.buyoutPrice = value["buyoutprice"];
 		temp_user.listings.emplace_back(temp_listing);
 	}
-
+	temp_user.bufferMessages = players["Users"][username]["buffer"];
 	return temp_user;
 }
 
@@ -530,9 +604,9 @@ void Server::CheckforExpiredListings()
 {
 	auto currentTime = std::chrono::system_clock::now();
 	std::time_t timeT = std::chrono::system_clock::to_time_t(currentTime);
-	std::tm* localTime = std::localtime(&timeT);
+	std::tm* _localTime = std::localtime(&timeT);
 	std::vector<Core::Listing> expired_listings;
-	localTime->tm_hour;
+	_localTime->tm_hour;
 	for(Core::Listing listing : listings)
 	{
 
@@ -552,7 +626,7 @@ void Server::CheckforExpiredListings()
 			parts.push_back(std::stoi(s_Hour));
 			parts.push_back(std::stoi(s_Minute));
 		}
-		if (parts[0] == localTime->tm_hour && parts[1] > localTime->tm_min)
+		if (parts[0] == _localTime->tm_hour && parts[1] > _localTime->tm_min)
 		{
 			expired_listings.emplace_back(listing);
 		}
@@ -562,6 +636,39 @@ void Server::CheckforExpiredListings()
 		RemoveListing(listing);
 	}
 }
+
+void Server::LoadListings()
+{
+	json j_listings;
+	try
+	{
+		std::ifstream f(m_ListingsDatabaseFilePath.string());
+		j_listings = json::parse(f);
+	}
+	catch (json::exception e)
+	{
+		std::cout << "[ERROR] Failed to load listings database " << m_ListingsDatabaseFilePath << std::endl << e.what() << std::endl;
+		return;
+	}
+	for (auto& [key, value] : j_listings["Listings"].items())
+	{
+		Core::Listing list = Core::Listing();
+		list.item.itemId = key;
+		list.item.name = value["name"];
+		list.bidder = value["bidder"];
+		list.sellerId = value["seller"];
+		list.price = value["price"];
+		list.buyoutPrice = value["buyout"];
+		list.ends = value["ends"];
+		listings.emplace_back(list);
+	}
+	if (listings.size() > 0)
+	{
+		CheckforExpiredListings();
+	}
+}
+
+
 
 void Server::RemoveListing(Core::Listing listing)
 {
@@ -601,6 +708,7 @@ void Server::RemoveListing(Core::Listing listing)
 		{
 			Core::User user = GetUser(listing.bidder);
 			user.inventory.emplace_back(listing.item);
+			user.bufferMessages.emplace_back(std::format("You won the auction of {} for {}G", listing.item.name, listing.price));
 			ToPlayerJson(user);
 		}
 		if (!bIsSellerOnline && listing.sellerId != "The State")
@@ -612,6 +720,7 @@ void Server::RemoveListing(Core::Listing listing)
 				return l.item.itemId == listing.item.itemId;
 			}),
 				user.listings.end());
+			user.bufferMessages.emplace_back(std::format("You sold the auction of {} for {}G", listing.item.name, listing.price));
 			ToPlayerJson(user);
 		}
 
@@ -624,6 +733,7 @@ void Server::RemoveListing(Core::Listing listing)
 		return l.item.itemId == listing.item.itemId;
 	}),
 		listings.end());
+	ToListingsJson();
 	
 }
 
@@ -652,6 +762,7 @@ bool Server::ToPlayerJson(Core::User user)
 			players["Users"][user.userId]["inventory"][my_item.itemId] = {};
 			players["Users"][user.userId]["inventory"][my_item.itemId]["name"] = my_item.name;
 		}
+		players["Users"][user.userId]["buffer"] = user.bufferMessages;
 		players["Users"][user.userId]["listings"] = {};
 		for (Core::Listing my_listings : user.listings)
 		{
@@ -678,6 +789,51 @@ bool Server::ToPlayerJson(Core::User user)
 	catch (json::exception e)
 	{
 		std::cout << "[ERROR] Failed to add player to database " << m_PlayerDatabaseFilePath << std::endl << e.what() << std::endl;
+		return false;
+	}
+}
+bool Server::ToListingsJson()
+{
+	json j_listings;
+	try
+	{
+		std::ifstream f(m_ListingsDatabaseFilePath.string());
+		j_listings = json::parse(f);
+	}
+	catch (json::exception e)
+	{
+		std::cout << "[ERROR] Failed to load listings database " << m_ListingsDatabaseFilePath << std::endl << e.what() << std::endl;
+		return false;
+	}
+	try
+	{
+		if (!j_listings.contains("Listings"))
+			j_listings["Listings"] = {};
+		for (Core::Listing list : listings)
+		{
+			j_listings["Listings"][list.item.itemId] = {};
+			j_listings["Listings"][list.item.itemId]["name"] = list.item.name;
+			j_listings["Listings"][list.item.itemId]["bidder"] = list.bidder;
+			j_listings["Listings"][list.item.itemId]["seller"] = list.sellerId;
+			j_listings["Listings"][list.item.itemId]["price"] = list.price;
+			j_listings["Listings"][list.item.itemId]["buyout"] = list.buyoutPrice;
+			j_listings["Listings"][list.item.itemId]["ends"] = list.ends;
+		}
+		if (std::filesystem::exists(std::filesystem::path(m_ListingsDatabaseFilePath)))
+		{
+			// Write JSON data to a file
+			std::ofstream outFile(m_ListingsDatabaseFilePath);
+			if (!outFile.is_open()) {
+				std::cerr << "Failed to open Listings.json for writing." << std::endl;
+			}
+			outFile << std::setw(4) << j_listings << std::endl; // Pretty-print JSON
+			outFile.close();
+		}
+		return true;
+	}
+	catch (json::exception e)
+	{
+		std::cout << "[ERROR] Failed to add listings to database " << m_ListingsDatabaseFilePath << std::endl << e.what() << std::endl;
 		return false;
 	}
 }

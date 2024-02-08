@@ -22,6 +22,7 @@ class Server
     std::vector<Core::AuctionhouseEvents> ahEvents;
     std::filesystem::path m_EventHistoryFilePath;
     std::filesystem::path m_PlayerDatabaseFilePath;
+    std::filesystem::path m_ListingsDatabaseFilePath;
     // SERVER LOGIC
 
 
@@ -35,10 +36,14 @@ class Server
     void PollConnectionStateChanges();
     Core::User GetUser(std::string username);
     bool ToPlayerJson(Core::User user);
+    bool ToListingsJson();
+    void LoadListings();
     void SendListings(uint32_t hConn);
     std::string ListTimeToString();
     void CheckforExpiredListings();
-    void RemoveListing(Core::Listing);
+    void RemoveListing(Core::Listing listing);
+    void HandleBid(std::map<ClientID, Core::User>::iterator itClient, std::string sCmd);
+    void HandleMe(std::map<ClientID, Core::User>::iterator itClient);
 public:
     void StartServer(const std::string address);
 };

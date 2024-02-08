@@ -63,6 +63,7 @@ namespace Core {
         std::vector<Listing> listings;
         std::vector<Item> inventory;
         double balance = 0;
+        std::vector <std::string> bufferMessages;
         // Other user properties
     };
 
