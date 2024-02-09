@@ -44,6 +44,68 @@ void Server::SendStringToAllClients(const char* str, uint32_t except = k_HSteamN
 			SendStringToClient(c.first, str);
 	}
 }
+void Server::HandlePost(std::map<ClientID, Core::User>::iterator itClient, std::string sCmd)
+{
+	char _temp[1024];
+	//Do something
+	const char* bid = sCmd.c_str() + 4;
+	std::istringstream iss(sCmd);
+
+	// Vector to store the words
+	std::vector<std::string> words;
+
+	// Read words from the input stream
+	std::string word;
+	while (iss >> word) {
+		words.push_back(word);
+	}
+	if (words.size() != 4)
+	{
+		sprintf(_temp, "Your post request was mallformed and not processed. Make sure to say: /post INVENTORYINDEX PRICE BUYOUT");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	int inventoryIndex;
+	int price;
+	int buyout;
+	try {
+		// Convert string to integer using std::stoi
+		inventoryIndex = std::stoi(words[1]) - 1;
+		price = std::stoi(words[2]);
+		buyout = std::stoi(words[3]);
+	}
+	catch (const std::invalid_argument& e) {
+		sprintf(_temp, "Your post request was mallformed and not processed. Make sure to say: /post INVENTORYINDEX PRICE BUYOUT");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	catch (const std::out_of_range& e) {
+		sprintf(_temp, "Your post request was mallformed and not processed. Make sure to say: /post INVENTORYINDEX PRICE BUYOUT");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	if (inventoryIndex > itClient->second.inventory.size())
+	{
+		sprintf(_temp, "Your post request was mallformed and not processed. The Inventory index was not a valid item");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	Core::Listing list = Core::Listing();
+	Core::Item item = itClient->second.inventory[inventoryIndex];
+	list.item.itemId = item.itemId;
+	list.item.name = item.name;
+	list.sellerId = itClient->second.userId;
+	list.price = price;
+	list.buyoutPrice = buyout;
+	list.ends = ListTimeToString();
+	sprintf(_temp, std::format("You posted {} for auction. With the starting price of: {} and the Buyout price {}", item.name, price, buyout).c_str());
+	SendStringToClient(itClient->first, _temp);
+	itClient->second.inventory.erase(itClient->second.inventory.begin() + inventoryIndex);
+	ToPlayerJson(itClient->second);
+	listings.emplace_back(list);
+	ToListingsJson();
+
+}
 void Server::HandleBid(std::map<ClientID, Core::User>::iterator itClient, std::string sCmd)
 {
 	char _temp[1024];
@@ -63,6 +125,7 @@ void Server::HandleBid(std::map<ClientID, Core::User>::iterator itClient, std::s
 	{
 		sprintf(_temp, "Your bid request was mallformed and not processed. Make sure to say: /bid LISTINGINDEX AMOUNT");
 		SendStringToClient(itClient->first, _temp);
+		return;
 	}
 	int listing_index;
 	int bid_amount;
@@ -118,6 +181,60 @@ void Server::HandleBid(std::map<ClientID, Core::User>::iterator itClient, std::s
 	return;
 }
 
+void Server::HandleBuyout(std::map<ClientID, Core::User>::iterator itClient, std::string sCmd)
+{
+	char _temp[1024];
+	//Do something
+	const char* bid = sCmd.c_str() + 4;
+	std::istringstream iss(sCmd);
+
+	// Vector to store the words
+	std::vector<std::string> words;
+
+	// Read words from the input stream
+	std::string word;
+	while (iss >> word) {
+		words.push_back(word);
+	}
+	if (words.size() != 2)
+	{
+		sprintf(_temp, "Your buyout request was mallformed and not processed. Make sure to say: /buyout LISTINGINDEX");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	int listing_index;
+	try {
+		// Convert string to integer using std::stoi
+		listing_index = std::stoi(words[1]) - 1;
+	}
+	catch (const std::invalid_argument& e) {
+		sprintf(_temp, "Your buyout request was mallformed and not processed. Make sure to say: /buyout LISTINGINDEX");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	catch (const std::out_of_range& e) {
+		sprintf(_temp, "Your buyout request was mallformed and not processed. Make sure to say: /buyout LISTINGINDEX");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	if (listing_index < 0 || listing_index > listings.size())
+	{
+		sprintf(_temp, "Invalid Listing");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	if (itClient->second.balance < listings[listing_index].buyoutPrice)
+	{
+		sprintf(_temp, "Insufficient funds");
+		SendStringToClient(itClient->first, _temp);
+		return;
+	}
+	itClient->second.balance -= listings[listing_index].buyoutPrice;
+	listings[listing_index].bidder = itClient->second.userId;
+	listings[listing_index].price = listings[listing_index].buyoutPrice;
+	RemoveListing(listings[listing_index]);
+}
+
 void Server::HandleMe(std::map<ClientID, Core::User>::iterator itClient)
 {
 	char _temp[1024];
@@ -125,8 +242,7 @@ void Server::HandleMe(std::map<ClientID, Core::User>::iterator itClient)
 	std::string listings_string = "";
 	for (size_t i = 0; i < itClient->second.inventory.size(); i++)
 	{
-		if (itClient->second.inventory[i].name != "")
-			inventory_string += std::format("{}. {} \n", i, itClient->second.inventory[i].name);
+		inventory_string += std::format("{}. {} \n", i+1, itClient->second.inventory[i].name);
 	}
 	for (size_t i = 0; i < itClient->second.listings.size(); i++)
 	{
@@ -205,6 +321,16 @@ void Server::PollIncomingMessages()
 			HandleMe(itClient);
 			continue;
 		}
+		else if (strncmp(cmd, "/post", 5) == 0)
+		{
+			HandlePost(itClient, sCmd);
+			continue;
+		}
+		else if (strncmp(cmd, "/buyout", 7) == 0)
+		{
+			HandleBuyout(itClient, sCmd);
+			continue;
+		}
 
 		// Assume it's just a ordinary chat message, dispatch to everybody else
 		sprintf(temp, "%s: %s", itClient->second.userId.c_str(), cmd);
@@ -232,6 +358,7 @@ void Server::SetClientNick(uint32_t hConn, const char* nick)
 {
 	char temp[1024];
 	m_connectedClients[hConn] = GetUser(nick);
+	m_pInterface->SetConnectionName(hConn, nick);
 	// Send them a welcome message
 	sprintf(temp, "Welcome %s", nick);
 	SendStringToClient(hConn, temp);
@@ -265,7 +392,7 @@ void Server::SetClientNick(uint32_t hConn, const char* nick)
 	sprintf(temp, "'%s' has connected", nick);
 	SendStringToAllClients(temp, (uint32)hConn);
 	// Set the connection name, too, which is useful for debugging
-	m_pInterface->SetConnectionName(hConn, nick);
+	
 }
 
 void Server::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
@@ -470,7 +597,7 @@ void Server::StartServer(const std::string address)
 	{
 		listings.resize(1);
 		Core::Listing list = Core::Listing();
-		list.item.itemId = "2340258";
+		list.item.itemId = "23458";
 		list.item.name = "Axe of doom";
 		list.sellerId = "The State";
 		list.price = 100;
@@ -499,6 +626,7 @@ void Server::StartServer(const std::string address)
 		PollIncomingMessages();
 		PollConnectionStateChanges();
 		PollLocalUserInput();
+		CheckforExpiredListings();
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	}
 
@@ -548,14 +676,14 @@ Core::User Server::GetUser(std::string username)
 		return temp_user;
 	}
 	temp_user.balance = players["Users"][username]["balance"];
-	for(auto& [key, value] : players["Users"]["inventory"].items())
+	for (auto& [key, value] : players["Users"][username]["inventory"].items())
 	{
 		Core::Item temp_item = Core::Item();
 		temp_item.itemId = key;
 		temp_item.name = value["name"];
 		temp_user.inventory.emplace_back(temp_item);
 	}
-	for (auto& [key, value] : players["Users"]["listings"].items())
+	for (auto& [key, value] : players["Users"][username]["listings"].items())
 	{
 		Core::Listing temp_listing = Core::Listing();
 		temp_listing.item.itemId = key;
@@ -596,7 +724,7 @@ std::string Server::ListTimeToString()
 	std::time_t timeT = std::chrono::system_clock::to_time_t(eightHoursLater);
 	std::tm* localTime = std::localtime(&timeT);
 	std::ostringstream oss;
-	oss << std::put_time(localTime, "%H:%M");
+	oss << std::put_time(localTime, "%Y-%m-%d %H:%M:%S");
 	return oss.str();
 }
 
@@ -610,23 +738,11 @@ void Server::CheckforExpiredListings()
 	for(Core::Listing listing : listings)
 	{
 
-		// Vector to store the split parts
-		std::vector<uint16> parts;
-
-		// Find the first occurrence of ':'
-		size_t pos = listing.ends.find(':');
-
-		// Check if ':' exists in the string
-		if (pos != std::string::npos) {
-			// Split the string into two parts
-			std::string s_Hour = listing.ends.substr(0, pos);
-			std::string s_Minute = listing.ends.substr(pos + 1);
-
-			// Add the parts to the vector
-			parts.push_back(std::stoi(s_Hour));
-			parts.push_back(std::stoi(s_Minute));
-		}
-		if (parts[0] == _localTime->tm_hour && parts[1] > _localTime->tm_min)
+		std::tm timeInfo = {};
+		std::istringstream iss(listing.ends);
+		iss >> std::get_time(&timeInfo, "%Y-%m-%d %H:%M:%S");
+		std::chrono::system_clock::time_point endpoint = std::chrono::system_clock::from_time_t(std::mktime(&timeInfo));
+		if(currentTime > endpoint)
 		{
 			expired_listings.emplace_back(listing);
 		}
@@ -713,7 +829,7 @@ void Server::RemoveListing(Core::Listing listing)
 		}
 		if (!bIsSellerOnline && listing.sellerId != "The State")
 		{
-			Core::User user = GetUser(listing.bidder);
+			Core::User user = GetUser(listing.sellerId);
 			user.balance += listing.price;
 			user.listings.erase(
 				std::remove_if(user.listings.begin(), user.listings.end(), [&](Core::Listing const& l) {
@@ -754,16 +870,20 @@ bool Server::ToPlayerJson(Core::User user)
 	{
 		if (!players.contains("Users"))
 			players["Users"] = {};
-		players["Users"][user.userId] = {};
+		if (!players["Users"].contains(user.userId))
+			players["Users"][user.userId] = {};
 		players["Users"][user.userId]["balance"] = user.balance;
-		players["Users"][user.userId]["inventory"] = {};
+		if (!players["Users"][user.userId].contains("inventory"))
+			players["Users"][user.userId]["inventory"] = {};
 		for (Core::Item my_item : user.inventory)
 		{
-			players["Users"][user.userId]["inventory"][my_item.itemId] = {};
+			if (!players["Users"][user.userId]["inventory"].contains(my_item.itemId))
+				players["Users"][user.userId]["inventory"][my_item.itemId] = {};
 			players["Users"][user.userId]["inventory"][my_item.itemId]["name"] = my_item.name;
 		}
 		players["Users"][user.userId]["buffer"] = user.bufferMessages;
-		players["Users"][user.userId]["listings"] = {};
+		if (!players["Users"][user.userId].contains("listings"))
+			players["Users"][user.userId]["listings"] = {};
 		for (Core::Listing my_listings : user.listings)
 		{
 			players["Users"][user.userId]["listings"][my_listings.item.itemId] = {};

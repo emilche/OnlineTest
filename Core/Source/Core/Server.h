@@ -43,6 +43,8 @@ class Server
     void CheckforExpiredListings();
     void RemoveListing(Core::Listing listing);
     void HandleBid(std::map<ClientID, Core::User>::iterator itClient, std::string sCmd);
+    void HandlePost(std::map<ClientID, Core::User>::iterator itClient, std::string sCmd);
+    void HandleBuyout(std::map<ClientID, Core::User>::iterator itClient, std::string sCmd);
     void HandleMe(std::map<ClientID, Core::User>::iterator itClient);
 public:
     void StartServer(const std::string address);
