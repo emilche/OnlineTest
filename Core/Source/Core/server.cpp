@@ -162,6 +162,34 @@ void Server::HandleBid(std::map<ClientID, Core::User>::iterator itClient, std::s
 		SendStringToClient(itClient->first, _temp);
 		return;
 	}
+	if (listings[listing_index].bidder != "None")
+	{
+		bool isPrevBidderOnline = false;
+		for (auto& client : m_connectedClients)
+		{
+			if (client.second.userId == listings[listing_index].bidder)
+			{
+				client.second.balance += listings[listing_index].price;
+				sprintf(_temp, std::format("Someone made a higher bid on {}.{}",
+					listing_index + 1, listings[listing_index].item.name
+				).c_str());
+				SendStringToClient(client.first, _temp);
+				isPrevBidderOnline = true;
+				ToPlayerJson(client.second);
+				break;
+			}
+		}
+		if (!isPrevBidderOnline)
+		{
+			Core::User prev_bidder = GetUser(listings[listing_index].bidder);
+			prev_bidder.balance += listings[listing_index].price;
+			prev_bidder.bufferMessages.emplace_back(std::format("Someone made a higher bid on {}.{}",
+				listing_index + 1, listings[listing_index].item.name
+			));
+			ToPlayerJson(prev_bidder);
+		}
+		
+	}
 	listings[listing_index].price = bid_amount;
 	listings[listing_index].bidder = itClient->second.userId;
 	itClient->second.balance -= bid_amount;
@@ -229,10 +257,65 @@ void Server::HandleBuyout(std::map<ClientID, Core::User>::iterator itClient, std
 		SendStringToClient(itClient->first, _temp);
 		return;
 	}
+	if (listings[listing_index].bidder != "None")
+	{
+		bool isPrevBidderOnline = false;
+		for (auto& client : m_connectedClients)
+		{
+			if (client.second.userId == listings[listing_index].bidder)
+			{
+				client.second.balance += listings[listing_index].price;
+				sprintf(_temp, std::format("Someone made a higher bid on {}.{}",
+					listing_index + 1, listings[listing_index].item.name
+				).c_str());
+				SendStringToClient(client.first, _temp);
+				isPrevBidderOnline = true;
+				ToPlayerJson(client.second);
+				break;
+			}
+		}
+		if (!isPrevBidderOnline)
+		{
+			Core::User prev_bidder = GetUser(listings[listing_index].bidder);
+			prev_bidder.balance += listings[listing_index].price;
+			prev_bidder.bufferMessages.emplace_back(std::format("Someone made a higher bid on {}.{}",
+				listing_index + 1, listings[listing_index].item.name
+			));
+			ToPlayerJson(prev_bidder);
+		}
+
+	}
 	itClient->second.balance -= listings[listing_index].buyoutPrice;
 	listings[listing_index].bidder = itClient->second.userId;
 	listings[listing_index].price = listings[listing_index].buyoutPrice;
 	RemoveListing(listings[listing_index]);
+}
+
+void Server::PostRandomListing()
+{
+	if (listings.size() == 0)
+	{
+		std::vector<std::string>random_names{
+			"Axe of doom", "Wool", "Copper Sword",
+			"Silver Sword", "Bow", "Crossbow",
+			"Leather", "Healing Potion", "Mana Potion",
+			"Mail Helmet", "Cap", "Boots",
+			"Gloves", "Cloak", "Amulet"
+		};
+		Core::Listing list = Core::Listing();
+		list.item.itemId = ListTimeToString();
+		auto currentTime = std::chrono::system_clock::now();
+		std::time_t timeT = std::chrono::system_clock::to_time_t(currentTime);
+		std::tm* localTime = std::localtime(&timeT);
+		int random_int = std::round(random_names.size() * localTime->tm_sec / 60);
+		list.item.name = random_names[random_int];
+		list.sellerId = "The State";
+		list.price = (int)(std::round(300 * localTime->tm_sec / 60));
+		list.buyoutPrice = list.price * 3;
+		list.ends = ListTimeToString();
+		listings.emplace_back(list);
+		ToListingsJson();
+	}
 }
 
 void Server::HandleMe(std::map<ClientID, Core::User>::iterator itClient)
@@ -593,19 +676,7 @@ void Server::StartServer(const std::string address)
 	
 	m_pInterface = SteamNetworkingSockets();
 	LoadListings();
-	if(listings.size() == 0)
-	{
-		listings.resize(1);
-		Core::Listing list = Core::Listing();
-		list.item.itemId = "23458";
-		list.item.name = "Axe of doom";
-		list.sellerId = "The State";
-		list.price = 100;
-		list.buyoutPrice = 400;
-		list.ends = ListTimeToString();
-		listings[0] = list;
-		ToListingsJson();
-	}
+	PostRandomListing();
 	// Start listening
 	SteamNetworkingIPAddr serverLocalAddr;
 	serverLocalAddr.Clear();
@@ -751,6 +822,7 @@ void Server::CheckforExpiredListings()
 	{
 		RemoveListing(listing);
 	}
+	PostRandomListing();
 }
 
 void Server::LoadListings()

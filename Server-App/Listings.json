@@ -1,20 +1,12 @@
 {
     "Listings": {
-        "23258": {
+        "2024-02-11 06:27:24": {
             "bidder": "None",
-            "buyout": 400.0,
-            "ends": "2024-02-10 05:35:28",
-            "name": "Axe of doom",
-            "price": 100.0,
+            "buyout": 360.0,
+            "ends": "2024-02-11 06:27:24",
+            "name": "Leather",
+            "price": 120.0,
             "seller": "The State"
-        },
-        "2340258": {
-            "bidder": "None",
-            "buyout": 500.0,
-            "ends": "2024-02-10 06:33:39",
-            "name": "Axe of doom",
-            "price": 300.0,
-            "seller": "Emilche"
         }
     }
 }

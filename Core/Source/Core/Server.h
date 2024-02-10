@@ -46,6 +46,7 @@ class Server
     void HandlePost(std::map<ClientID, Core::User>::iterator itClient, std::string sCmd);
     void HandleBuyout(std::map<ClientID, Core::User>::iterator itClient, std::string sCmd);
     void HandleMe(std::map<ClientID, Core::User>::iterator itClient);
+    void PostRandomListing();
 public:
     void StartServer(const std::string address);
 };

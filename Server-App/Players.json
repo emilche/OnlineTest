@@ -1,29 +1,4 @@
 {
     "Users": {
-        "Emilche": {
-            "balance": 600.0,
-            "buffer": [],
-            "inventory": {
-                "2340258": {
-                    "name": "Axe of doom"
-                }
-            },
-            "listings": null
-        },
-        "Lisa": {
-            "balance": 600.0,
-            "buffer": [
-                "You sold the auction of Axe of doom for 500G"
-            ],
-            "inventory": {
-                "23258": {
-                    "name": "Axe of doom"
-                },
-                "2340258": {
-                    "name": "Axe of doom"
-                }
-            },
-            "listings": null
-        }
     }
 }
