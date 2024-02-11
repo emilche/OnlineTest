@@ -1,4 +1,22 @@
 {
     "Users": {
+        "": {
+            "balance": 0.0,
+            "buffer": [],
+            "inventory": null,
+            "listings": null
+        },
+        "Emilche": {
+            "balance": 1000.0,
+            "buffer": [],
+            "inventory": null,
+            "listings": null
+        },
+        "Lisa": {
+            "balance": 659.0,
+            "buffer": [],
+            "inventory": null,
+            "listings": null
+        }
     }
 }

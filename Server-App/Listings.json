@@ -7,6 +7,14 @@
             "name": "Leather",
             "price": 120.0,
             "seller": "The State"
+        },
+        "340406654": {
+            "bidder": "Lisa",
+            "buyout": 1017.0,
+            "ends": "2024-02-11 18:00:03",
+            "name": "Healing Potion",
+            "price": 341.0,
+            "seller": "The State"
         }
     }
 }
