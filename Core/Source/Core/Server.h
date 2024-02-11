@@ -19,8 +19,6 @@ class Server
 
     std::map<ClientID, Core::User> m_connectedClients;
     std::vector<Core::Listing> listings;
-    std::vector<Core::AuctionhouseEvents> ahEvents;
-    std::filesystem::path m_EventHistoryFilePath;
     std::filesystem::path m_PlayerDatabaseFilePath;
     std::filesystem::path m_ListingsDatabaseFilePath;
     // Define a vector of random item names

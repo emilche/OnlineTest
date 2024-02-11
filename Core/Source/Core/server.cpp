@@ -975,32 +975,10 @@ bool Server::ToListingsJson()
 void Server::StartServer(const std::string address)
 {
     s_pCallbackInstance = this;
-    m_EventHistoryFilePath = "EventHistory.json";
     m_PlayerDatabaseFilePath = "Players.json";
     m_ListingsDatabaseFilePath = "Listings.json";
-    CreateFileIfNotExists(m_EventHistoryFilePath, "Events");
     CreateFileIfNotExists(m_PlayerDatabaseFilePath, "Users");
     CreateFileIfNotExists(m_ListingsDatabaseFilePath, "Listings");
-    try
-    {
-        std::ifstream f(m_PlayerDatabaseFilePath.string());
-        json players = json::parse(f);
-    }
-    catch (json::exception e)
-    {
-        std::cout << "[ERROR] Failed to load player database " << m_PlayerDatabaseFilePath << std::endl << e.what() << std::endl;
-        return;
-    }
-    try
-    {
-        std::ifstream f(m_EventHistoryFilePath.string());
-        json events = json::parse(f);
-    }
-    catch (json::exception e)
-    {
-        std::cout << "[ERROR] Failed to load event database " << m_EventHistoryFilePath << std::endl << e.what() << std::endl;
-        return;
-    }
 
 	m_pInterface = SteamNetworkingSockets();
     LoadListings();

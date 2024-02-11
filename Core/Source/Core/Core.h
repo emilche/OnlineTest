@@ -29,17 +29,6 @@ namespace Core {
         // Other item properties
     };
 
-    enum AuctionhouseInteractions
-    {
-        Posted,
-        Bid,
-        Buyout,
-        Sold,
-        Expired,
-        Cancelled,
-        Won
-    };
-
     struct Listing {
         Item item;
         std::string sellerId;
@@ -48,14 +37,6 @@ namespace Core {
         double buyoutPrice;
         std::string ends;
         // Other listing properties
-    };
-    struct AuctionhouseEvents {
-        std::string timestamp;
-        std::string user;
-        Listing listed_item;
-        AuctionhouseInteractions ahEvent;
-
-
     };
 
     struct User {
@@ -92,8 +73,6 @@ namespace Core {
     void LocalUserInput_Init();
     void LocalUserInput_Kill();
     bool LocalUserInput_GetNext(std::string& result);
-
-    User GetUser(std::string username);
     
 
 

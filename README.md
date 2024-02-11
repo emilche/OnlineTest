@@ -1,23 +1,15 @@
-# C++ Project Starter Template
+This is a basic terminal based auction house simulator.
 
-This is a little quick-start project template for C++ projects which utilise a Core/App project architecture. There are two included projects - one called _Core_, and one called _App_. [Premake](https://github.com/premake/premake-core) is used to generate project files.
+It uses GNS (https://github.com/ValveSoftware/GameNetworkingSockets)
+The connection part of the system comes from the chat example in that repo.
+Reason I used this framework was to make it as close to how I would expect I would work with frameworks.
 
-Core builds into a static library and is meant to contain common code intended for use in multiple applications. App builds into an executable and links the Core static library, as well as provides an include path to Core's code.
+There is quite a lot of improvements that could be made. Isntead of constantly checking for messages. It could be better to actually make an event based system that only polls them when it actually happens.
+Then I would like to change in some places where I use a copy of the variable instead of using pointers.
 
-The `Scripts/` directory contains build scripts for Windows and Linux, and the `Vendor/` directory contains Premake binaries (currently version `5.0-beta2`).
+For database I used Json files as it would make the whole sharing and building of the repo easier. But this should of course be changed to an SQL database ro the likes. For better handeling and safe guardings. As a Json file is quite risky when it comes to overwriting data and so on. But it servered its purpose.
 
-## Getting Started
-1. Clone this repository or use the "Use this template" button on GitHub to quickly set up your own repository based on this template
-2. `App/` and `Core/` are the two projects - you can edit the names of these folders and their contents to suit
-3. The three included Premake build files are `Build.lua`, `Core/Build-Core.lua` and `App/Build-App.lua` - you can edit these to customise your build configurations, edit the names of your projects and workspace/solution, etc.
-4. Open the `Scripts/` directory and run the appropriate `Setup` script to generate projects files. You can edit the setup scripts to change the type of project that is generated - out of the box they are set to Visual Studio 2022 for Windows and gmake2 for Linux.
-
-Note that no macOS setup script is currently provided; you can duplicate the Linux script and adjust accordingly.
-
-## Included
-- Some example code (in `App/Source` and `Core/Source`) to provide a starting point and test
-- Simple `.gitignore` to ignore project files and binaries
-- Premake binaries for Win/Mac/Linux (`v5.0-beta2`)
+To build the solution you can just run the bat file in the script folder.
 
 ## License
 - UNLICENSE for this repository (see `UNLICENSE.txt` for more details)
